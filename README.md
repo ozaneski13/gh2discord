@@ -2,6 +2,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/gh2discord)](https://pypi.org/project/gh2discord/)
 [![tests](https://github.com/ozaneski13/gh2discord/actions/workflows/test.yml/badge.svg)](https://github.com/ozaneski13/gh2discord/actions/workflows/test.yml)
+[![CodeQL](https://github.com/ozaneski13/gh2discord/actions/workflows/codeql.yml/badge.svg)](https://github.com/ozaneski13/gh2discord/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ozaneski13/gh2discord/badge)](https://scorecard.dev/viewer/?uri=github.com/ozaneski13/gh2discord)
 [![Python 3.9+](https://img.shields.io/pypi/pyversions/gh2discord)](https://pypi.org/project/gh2discord/)
 
 Wire GitHub repos to Discord channels with one command.
@@ -81,6 +83,31 @@ gh2discord track owner/lib --channel releases --events release
   ignores event types it can't render. Use an explicit list for quieter channels.
 - GitHub returns 404 (not 403) when your token lacks webhook access to a repo —
   if a repo you own reports "not found", check your token scopes first.
+
+## Security
+
+This tool is built to be easy to audit and hard to abuse:
+
+- **Zero runtime dependencies** — pure Python standard library; the whole
+  source is five small files you can read in ten minutes.
+- **Single network destination** — only `https://api.github.com`, over HTTPS,
+  with silent redirects disabled.
+- **Your token never leaves your machine** — read from the environment or the
+  `gh` CLI at runtime, never stored, never logged.
+- **Webhook URLs are treated as secrets** — stored locally with owner-only
+  file permissions and masked (`***`) in every command output.
+- **No telemetry, no analytics, no phone-home.**
+- **Verifiable releases** — published to PyPI exclusively by GitHub Actions
+  via [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) with
+  [PEP 740 attestations](https://docs.pypi.org/attestations/); check the
+  provenance on the [PyPI page](https://pypi.org/project/gh2discord/). No
+  human ever uploads a build by hand, and no long-lived PyPI token exists.
+- **Hardened CI** — all Actions pinned to full commit SHAs, CodeQL scanning,
+  OpenSSF Scorecard, Dependabot updates, secret-scanning push protection,
+  and a protected `main` branch (no force pushes, no deletion).
+
+Found a vulnerability? See [SECURITY.md](SECURITY.md) — please use private
+reporting, not a public issue.
 
 ## Roadmap
 
