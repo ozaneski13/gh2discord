@@ -84,6 +84,10 @@ gh2discord track owner/lib --channel releases --events release
 - Polling mode for repos you don't administer (releases/commits feeds).
 - Org-wide webhook helper for organization accounts.
 
-## License
+## License & Attribution
 
-MIT © Ozan Eski
+MIT © [Ozan Eski](https://github.com/ozaneski13) — free for everyone and every
+use, personal or commercial. The one requirement (per the MIT license terms):
+if you copy, modify, or redistribute this code or a substantial portion of it,
+you must keep the copyright notice — credit **Ozan Eski / gh2discord** and
+link back to this repository.
