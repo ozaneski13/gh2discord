@@ -1,5 +1,9 @@
 # gh2discord
 
+[![PyPI](https://img.shields.io/pypi/v/gh2discord)](https://pypi.org/project/gh2discord/)
+[![tests](https://github.com/ozaneski13/gh2discord/actions/workflows/test.yml/badge.svg)](https://github.com/ozaneski13/gh2discord/actions/workflows/test.yml)
+[![Python 3.9+](https://img.shields.io/pypi/pyversions/gh2discord)](https://pypi.org/project/gh2discord/)
+
 Wire GitHub repos to Discord channels with one command.
 
 Discord can render GitHub webhook payloads natively — no bot, no middleware.
