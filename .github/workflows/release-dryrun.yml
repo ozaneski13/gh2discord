@@ -1,0 +1,39 @@
+name: release-dryrun
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: artifacts survived the upload/download round trip
+        run: |
+          ls -l dist/
+          test -n "$(find dist -name 'gh2discord-*.whl')" || { echo "wheel missing"; exit 1; }
+          test -n "$(find dist -name 'gh2discord-*.tar.gz')" || { echo "sdist missing"; exit 1; }
+      - name: wheel installs and the CLI runs
+        run: |
+          python -m pip install --quiet dist/gh2discord-*.whl
+          gh2discord --version
