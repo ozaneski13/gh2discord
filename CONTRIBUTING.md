@@ -32,8 +32,11 @@ All GitHub Actions are pinned to full commit SHAs; Dependabot proposes weekly
 bumps. Rules learned the hard way:
 
 - **`github/codeql-action` refs must be bumped together** (`init`, `analyze`,
-  `upload-sarif` — all to the same SHA). Dependabot proposes them as separate
-  PRs; merging only one mixes major versions and the codeql workflow fails.
+  `upload-sarif` — all to the same SHA). Merging only one mixes versions and
+  the codeql workflow fails. Dependabot used to propose them as three separate
+  PRs; `dependabot.yml` now groups them under `codeql-action`, so they arrive
+  as a single PR that is safe to merge as-is. If you ever see them split
+  again, bump all three in one commit and close the individual PRs.
 - `actions/upload-artifact` and `actions/download-artifact` version
   independently; after bumping either, the pair is only exercised for real by
   the next release run (the `publish` workflow), so watch that run.
