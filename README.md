@@ -119,7 +119,7 @@ This tool is built to be easy to audit and hard to abuse:
   OpenSSF Scorecard, Dependabot updates, secret-scanning push protection,
   and a protected `main` branch (no force pushes, no deletion).
 
-Found a vulnerability? See [SECURITY.md](SECURITY.md) — please use private
+Found a vulnerability? See [SECURITY.md](https://github.com/ozaneski13/gh2discord/blob/main/SECURITY.md) — please use private
 reporting, not a public issue.
 
 ## Roadmap

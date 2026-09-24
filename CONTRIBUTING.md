@@ -10,8 +10,12 @@ python -m pytest tests/ -q
 ```
 
 Zero runtime dependencies is a design constraint — new code uses the Python
-standard library only. Unit tests must not touch the network: inject a fake
-transport into `GitHubClient` (see `tests/test_github.py`).
+standard library only. Tests never touch the external network: API-level
+tests inject a fake transport into `GitHubClient` (`tests/test_github.py`),
+CLI tests replace `cli._client` with a fake client (`tests/test_cli.py`),
+and transport-level tests may use a loopback-only server on 127.0.0.1
+(`tests/test_security.py`). POSIX-only tests (file modes) are skipped on
+Windows and run in the Ubuntu and macOS CI jobs.
 
 ## Release process
 
