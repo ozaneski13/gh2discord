@@ -276,6 +276,32 @@ def test_status_healthy_hook_is_masked(client, capsys):
     assert "SecretToken" not in out
 
 
+def test_status_disabled_hook_exits_1(client, capsys):
+    add_channel("general", URL_A)
+    main(["track", "o/r"])
+    client.hooks[0]["active"] = False
+    capsys.readouterr()
+    assert main(["status"]) == 1
+    assert "o/r: DISABLED" in capsys.readouterr().out
+
+
+def test_status_failing_delivery_exits_1(client, capsys):
+    add_channel("general", URL_A)
+    main(["track", "o/r"])
+    client.hooks[0]["last_response"] = {"code": 404, "status": "invalid"}
+    capsys.readouterr()
+    assert main(["status"]) == 1
+    assert "last delivery: 404 invalid" in capsys.readouterr().out
+
+
+def test_status_hook_without_deliveries_is_healthy(client, capsys):
+    add_channel("general", URL_A)
+    main(["track", "o/r"])
+    capsys.readouterr()
+    assert main(["status"]) == 0
+    assert "last delivery: no deliveries yet" in capsys.readouterr().out
+
+
 def test_status_repo_without_hook_exits_1(client, capsys):
     assert main(["status", "o/none"]) == 1
     assert "o/none: ERROR - no Discord hook on this repo" in capsys.readouterr().out

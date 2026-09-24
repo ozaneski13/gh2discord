@@ -64,7 +64,9 @@ optional `.git` suffix); it is normalized to `owner/repo`.
   GitHub, the local record is still cleared (persisted) and the command
   exits 1.
 - `status` reads live hook state incl. `last_response` (delivery health). It
-  exits 1 if any repo returns an API error or has no Discord hook.
+  exits 1 if any repo returns an API error, has no Discord hook, or has an
+  unhealthy hook: disabled, or a last delivery outside 2xx. A hook that has
+  never delivered counts as healthy.
 - `ping` triggers GitHub's webhook ping to verify delivery end to end.
 
 ## Auth
@@ -124,8 +126,9 @@ tests, and a loopback-only server for transport-level tests.
   pages (`reconfigure(errors="replace")`).
 - Missing token / missing default channel → actionable one-line fix.
 
-Exit codes: 0 ok; 1 API/config error, or a repo with no matching Discord hook
-(`status`, `untrack`); 2 usage error (argparse default).
+Exit codes: 0 ok; 1 API/config error, a repo with no matching Discord hook
+(`status`, `untrack`) or an unhealthy hook (`status`); 2 usage error
+(argparse default).
 
 ## Packaging
 

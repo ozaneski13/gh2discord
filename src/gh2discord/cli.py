@@ -131,6 +131,8 @@ def _cmd_status(args) -> int:
             failed = True
             print(f"{row['repo']}: ERROR - {_redact(row['error'])}")
             continue
+        if not row["active"] or (row["code"] is not None and not 200 <= row["code"] < 300):
+            failed = True
         state = "active" if row["active"] else "DISABLED"
         delivery = f"{row['code']} {row['status']}" if row["code"] else "no deliveries yet"
         events = ", ".join(row["events"])

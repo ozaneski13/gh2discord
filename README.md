@@ -57,7 +57,7 @@ gh2discord track owner/repo                     # default channel, all events
 gh2discord track owner/repo --events push,release,issues,pull_request
 gh2discord track owner/repo --channel alerts    # per-repo channel
 gh2discord list                                 # tracked repos
-gh2discord status                               # live hook health (last delivery)
+gh2discord status                               # live hook health; exits 1 if any hook is unhealthy
 gh2discord status owner/repo                    # one repo only
 gh2discord ping owner/repo                      # end-to-end delivery test
 gh2discord untrack owner/repo                   # remove the hook
