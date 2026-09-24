@@ -25,8 +25,8 @@ CI installs its tools from hash-pinned lock files in `.github/requirements/`:
 editing a `.in` file, or to pick up new versions, regenerate both with uv:
 
 ```bash
-uv pip compile --universal --generate-hashes --python-version 3.9 .github/requirements/test.in -o .github/requirements/test.txt
-uv pip compile --universal --generate-hashes --python-version 3.9 .github/requirements/build.in -o .github/requirements/build.txt
+uv pip compile --universal --generate-hashes --python-version 3.10 .github/requirements/test.in -o .github/requirements/test.txt
+uv pip compile --universal --generate-hashes --python-version 3.10 .github/requirements/build.in -o .github/requirements/build.txt
 ```
 
 `--python-version` must match the `requires-python` floor in

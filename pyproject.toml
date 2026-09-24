@@ -7,7 +7,7 @@ name = "gh2discord"
 version = "0.1.1"
 description = "One-command GitHub to Discord notifications: manage repo webhooks that post straight to your Discord channels."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Ozan Eski" }]
 keywords = ["github", "discord", "webhook", "notifications", "cli"]
@@ -19,7 +19,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -37,7 +36,7 @@ Issues = "https://github.com/ozaneski13/gh2discord/issues"
 gh2discord = "gh2discord.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=9.0.3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gh2discord"]

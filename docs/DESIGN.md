@@ -110,7 +110,7 @@ Per-repo channels already work in v0.1: register additional channels with
   composing config + github. Returns structured results.
 - `cli.py` — argparse, dispatch, human-readable output, exit codes.
 
-Zero runtime dependencies (stdlib only). Python ≥ 3.9. Tests: pytest, never
+Zero runtime dependencies (stdlib only). Python ≥ 3.10. Tests: pytest, never
 the external network: a fake transport for API tests, a fake client for CLI
 tests, and a loopback-only server for transport-level tests.
 

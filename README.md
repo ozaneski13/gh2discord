@@ -26,7 +26,7 @@ pipx install gh2discord   # recommended
 pip install gh2discord
 ```
 
-Zero runtime dependencies. Python 3.9+.
+Zero runtime dependencies. Python 3.10+.
 
 ## Setup (once)
 
