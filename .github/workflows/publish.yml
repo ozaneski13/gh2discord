@@ -67,6 +67,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          existing=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[] | select(.tag_name == env.GITHUB_REF_NAME) | .id')
+          test -z "$existing" || { echo "::error::a release or draft for $GITHUB_REF_NAME already exists (ids: $existing); delete it first"; exit 1; }
           obj=$(gh api "repos/$GH_REPO/git/ref/tags/$GITHUB_REF_NAME" --jq '.object.type + " " + .object.sha')
           if [ "${obj%% *}" = tag ]; then
             gh api "repos/$GH_REPO/git/tags/${obj##* }" --jq .message > notes.md
@@ -74,7 +76,8 @@ jobs:
           else
             notes=(--generate-notes)
           fi
-          gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag --title "gh2discord ${GITHUB_REF_NAME#v}" "${notes[@]}"
+          gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag --title "gh2discord ${GITHUB_REF_NAME#v}" "${notes[@]}" \
+            || { gh release delete "$GITHUB_REF_NAME" --yes || true; exit 1; }
 
   pypi:
     needs: draft
@@ -95,8 +98,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: publish the draft release
+      - name: publish the draft release once it is complete
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+        run: |
+          ids=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[] | select(.draft and .tag_name == env.GITHUB_REF_NAME) | .id')
+          test "$(printf '%s\n' "$ids" | grep -c .)" -eq 1 || { echo "::error::expected exactly one draft for $GITHUB_REF_NAME, got: $ids"; exit 1; }
+          complete=$(gh api "repos/$GH_REPO/releases/$ids" --jq '[.assets[] | select(.state == "uploaded") | .name] as $n | [$n[] | select(endswith(".whl") or endswith(".tar.gz"))] as $d | ($d | any(endswith(".whl"))) and ($d | any(endswith(".tar.gz"))) and ($d | all(. as $f | any($n[]; . == ($f + ".sigstore.json"))))')
+          test "$complete" = true || { echo "::error::draft $ids is missing a dist or a signature"; exit 1; }
+          gh api -X PATCH "repos/$GH_REPO/releases/$ids" -F draft=false --jq '"published \(.html_url) immutable=\(.immutable)"'

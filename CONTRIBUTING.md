@@ -37,8 +37,9 @@ platform into one file with environment markers.
 
 Releases are fully automated via PyPI Trusted Publishing (OIDC) — there is no
 PyPI token anywhere, and no manual upload path. GitHub releases are
-immutable once published and PyPI never accepts the same version twice, so a
-mistake can only be fixed with a new version.
+immutable once published, and PyPI never accepts a changed file under a
+filename it already has, so a published mistake can only be fixed with a new
+version.
 
 1. Bump the version in **both** places:
    - `pyproject.toml` → `version = "X.Y.Z"`
@@ -51,14 +52,32 @@ mistake can only be fixed with a new version.
    `publish.yml`, installs the wheel and runs `gh2discord --version`. It
    never touches PyPI or GitHub releases.
 4. Tag the release with an annotated tag whose message is the release notes,
-   then push the tag:
-   `git tag -a vX.Y.Z -F notes.md` and `git push origin vX.Y.Z`
+   check the message survived, then push the tag:
+   `git tag -a vX.Y.Z --cleanup=verbatim -F notes.md`, `git tag -n99 vX.Y.Z`,
+   `git push origin vX.Y.Z`. Without `--cleanup=verbatim`, git drops every
+   line starting with `#`, including Markdown headings.
 5. The `publish` workflow runs on the tag: build (and check the version
    matches the tag) → Sigstore-sign → draft GitHub release with the wheel,
    sdist and their `.sigstore.json` bundles → PyPI with PEP 740 attestations
-   → publish the release. If a step fails before the last one, the release
-   stays a draft: delete the draft and the tag, fix, and tag again. Verify at
-   https://pypi.org/project/gh2discord/ and on the GitHub release page.
+   → publish the draft, only after checking that it holds every dist and
+   every signature. Verify at https://pypi.org/project/gh2discord/ and on
+   the GitHub release page.
+
+If a `publish` job fails, what to do depends on whether PyPI already has files
+for the version (check https://pypi.org/project/gh2discord/X.Y.Z/):
+
+- **Nothing on PyPI yet** (`build`, `sign`, `draft` failed, or `pypi` failed
+  before uploading): delete the draft if there is one
+  (`gh release delete vX.Y.Z --yes`, which keeps the tag). If the fix needs a
+  new commit, also delete the tag (`git push --delete origin vX.Y.Z` and
+  `git tag -d vX.Y.Z`). Then fix and tag again.
+- **Files already on PyPI** (`pypi` failed part-way, or `release` failed):
+  delete nothing. Use "Re-run failed jobs" on the same run; it reuses the
+  same artifacts, and PyPI accepts a byte-identical re-upload. If the fix
+  needs a change to `src/`, `README.md` or `pyproject.toml`, abandon X.Y.Z
+  and release X.Y.Z+1 instead.
+- Never set `skip-existing` on the PyPI step: it would hide a mismatch
+  between the files on GitHub and on PyPI.
 
 ## Dependabot / pinned actions
 
