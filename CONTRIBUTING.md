@@ -17,6 +17,22 @@ and transport-level tests may use a loopback-only server on 127.0.0.1
 (`tests/test_security.py`). POSIX-only tests (file modes) are skipped on
 Windows and run in the Ubuntu and macOS CI jobs.
 
+## Hash-pinned CI dependencies
+
+CI installs its tools from hash-pinned lock files in `.github/requirements/`:
+`test.txt` (pytest) and `build.txt` (build + hatchling, used with
+`python -m build --no-isolation` so the build backend is pinned too). After
+editing a `.in` file, or to pick up new versions, regenerate both with uv:
+
+```bash
+uv pip compile --universal --generate-hashes --python-version 3.9 .github/requirements/test.in -o .github/requirements/test.txt
+uv pip compile --universal --generate-hashes --python-version 3.9 .github/requirements/build.in -o .github/requirements/build.txt
+```
+
+`--python-version` must match the `requires-python` floor in
+`pyproject.toml`; `--universal` resolves every supported Python version and
+platform into one file with environment markers.
+
 ## Release process
 
 Releases are fully automated via PyPI Trusted Publishing (OIDC) — there is no
