@@ -41,7 +41,11 @@ gh2discord untrack <owner/repo>
 gh2discord list
 gh2discord status [<owner/repo>]
 gh2discord ping <owner/repo>
+gh2discord --version
 ```
+
+Every `<owner/repo>` argument also accepts a GitHub URL (https or SSH form,
+optional `.git` suffix); it is normalized to `owner/repo`.
 
 - `track` is idempotent: if the repo already has a hook pointing at the target
   URL with `content_type: json`, correct events, and active state, nothing is
@@ -54,10 +58,13 @@ gh2discord ping <owner/repo>
   a warning and `--force` deletes them.
 - `--events` defaults to `all` (GitHub `*`; Discord silently ignores event
   types it cannot render).
-- `untrack` deletes the hook (matched by recorded id, falling back to target
-  URL) and removes the local record. If no matching hook exists on GitHub,
-  the local record is still cleared (persisted) and the command exits 1.
-- `status` reads live hook state incl. `last_response` (delivery health).
+- `untrack` deletes the hook (matched by recorded id, falling back to every
+  Discord hook that targets any registered channel, so it can delete more
+  than one) and removes the local record. If no matching hook exists on
+  GitHub, the local record is still cleared (persisted) and the command
+  exits 1.
+- `status` reads live hook state incl. `last_response` (delivery health). It
+  exits 1 if any repo returns an API error or has no Discord hook.
 - `ping` triggers GitHub's webhook ping to verify delivery end to end.
 
 ## Auth
@@ -84,6 +91,8 @@ JSON at `%APPDATA%\gh2discord\config.json` (Windows) or
 
 Channel URLs are stored canonically **without** the `/github` suffix (accepted
 and stripped on input); the suffix is appended when creating GitHub hooks.
+The `ptb.`, `canary.` and `discordapp.com` hosts are accepted, and an
+`/api/vNN/` version segment is stripped.
 GitHub is the source of truth for hook state; `repos` is a local record that
 `status`/`untrack` reconcile against live data.
 
@@ -114,7 +123,8 @@ fake transport injected into the client (no network in unit tests).
   pages (`reconfigure(errors="replace")`).
 - Missing token / missing default channel → actionable one-line fix.
 
-Exit codes: 0 ok, 1 API/config error, 2 usage error (argparse default).
+Exit codes: 0 ok; 1 API/config error, or a repo with no matching Discord hook
+(`status`, `untrack`); 2 usage error (argparse default).
 
 ## Packaging
 

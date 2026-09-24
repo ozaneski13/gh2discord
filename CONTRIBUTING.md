@@ -22,8 +22,14 @@ PyPI token anywhere, and no manual upload path.
    - `pyproject.toml` → `version = "X.Y.Z"`
    - `src/gh2discord/__init__.py` → `__version__ = "X.Y.Z"`
 2. Commit and push to `main`; wait for the `tests` workflow to go green.
-3. `gh release create vX.Y.Z --title "gh2discord X.Y.Z" --notes "..."`
-4. The `publish` workflow builds the sdist/wheel and publishes to PyPI with
+3. Run the release dry run and wait for it to go green:
+   `gh workflow run release-dryrun.yml`, then `gh run watch`. It builds the
+   sdist and wheel, round-trips them through the same upload/download-artifact
+   pins as `publish.yml`, installs the wheel and runs `gh2discord --version`.
+   It never touches PyPI; the PyPI upload step itself only runs in a real
+   release.
+4. `gh release create vX.Y.Z --title "gh2discord X.Y.Z" --notes "..."`
+5. The `publish` workflow builds the sdist/wheel and publishes to PyPI with
    PEP 740 attestations. Verify at https://pypi.org/project/gh2discord/.
 
 ## Dependabot / pinned actions
@@ -38,8 +44,9 @@ bumps. Rules learned the hard way:
   as a single PR that is safe to merge as-is. If you ever see them split
   again, bump all three in one commit and close the individual PRs.
 - `actions/upload-artifact` and `actions/download-artifact` version
-  independently; after bumping either, the pair is only exercised for real by
-  the next release run (the `publish` workflow), so watch that run.
+  independently; after bumping either, run the `release-dryrun` workflow. It
+  exercises exactly the pair `publish.yml` uses (the PyPI upload step itself
+  is only exercised by a real release).
 - Dependabot's default limit is 5 open PRs — more bumps may be queued behind
   the visible ones.
 

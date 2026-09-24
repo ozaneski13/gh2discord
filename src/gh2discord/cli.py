@@ -179,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     track.add_argument(
         "--force",
         action="store_true",
-        help="retarget an existing Discord hook that points elsewhere",
+        help="retarget a conflicting Discord hook and delete any other Discord hooks on the repo",
     )
     track.set_defaults(func=_cmd_track)
 
