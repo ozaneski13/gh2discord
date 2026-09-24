@@ -35,4 +35,11 @@ via [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/)
 at publish time. You can verify on the
 [PyPI project page](https://pypi.org/project/gh2discord/) that each file's
 provenance points back to this repository and its `publish.yml` workflow.
-All GitHub Actions used in CI are pinned to full commit SHAs.
+
+From 0.1.1 on, each GitHub release also carries the wheel and sdist together
+with their Sigstore bundles (`*.sigstore.json`), and releases are immutable
+once published: their assets and tag cannot be changed afterwards.
+
+All GitHub Actions are pinned to full commit SHAs (enforced by a repository
+setting), and the build and test tools are installed from hash-pinned lock
+files.

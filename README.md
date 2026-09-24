@@ -113,9 +113,12 @@ This tool is built to be easy to audit and hard to abuse:
 - **Verifiable releases** — published to PyPI exclusively by GitHub Actions
   via [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) with
   [PEP 740 attestations](https://docs.pypi.org/attestations/); check the
-  provenance on the [PyPI page](https://pypi.org/project/gh2discord/). No
-  human ever uploads a build by hand, and no long-lived PyPI token exists.
-- **Hardened CI** — all Actions pinned to full commit SHAs, CodeQL scanning,
+  provenance on the [PyPI page](https://pypi.org/project/gh2discord/). Each
+  GitHub release carries the wheel and sdist with their Sigstore signatures,
+  and releases are immutable once published. No human ever uploads a build
+  by hand, and no long-lived PyPI token exists.
+- **Hardened CI** — all Actions pinned to full commit SHAs (enforced by a
+  repository setting), hash-pinned build and test tools, CodeQL scanning,
   OpenSSF Scorecard, Dependabot updates, secret-scanning push protection,
   and a protected `main` branch (no force pushes, no deletion).
 
