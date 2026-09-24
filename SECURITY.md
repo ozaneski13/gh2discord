@@ -38,7 +38,17 @@ provenance points back to this repository and its `publish.yml` workflow.
 
 From 0.1.1 on, each GitHub release also carries the wheel and sdist together
 with their Sigstore bundles (`*.sigstore.json`), and releases are immutable
-once published: their assets and tag cannot be changed afterwards.
+once published: their assets and tag cannot be changed afterwards. To check a
+downloaded file, keep its `.sigstore.json` bundle next to it and run:
+
+```bash
+pip install sigstore
+sigstore verify github gh2discord-X.Y.Z-py3-none-any.whl --repository ozaneski13/gh2discord --ref refs/tags/vX.Y.Z
+```
+
+`OK: <file>` means the file was built and signed by this repository's release
+workflow for that tag; a modified file or a signature from any other
+repository fails.
 
 All GitHub Actions are pinned to full commit SHAs (enforced by a repository
 setting), and the build and test tools are installed from hash-pinned lock
