@@ -1,11 +1,23 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 
 from . import __version__, commands
 from .config import ConfigError, load, normalize_repo, save
 from .github import AuthError, GitHubClient, GitHubError, resolve_token
+
+_TOKEN_RE = re.compile(r"(/api/(?:v\d+/)?webhooks/\d+/)[A-Za-z0-9_-]+")
+
+
+def _redact(text: str) -> str:
+    return _TOKEN_RE.sub(r"\1***", text)
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        super().error(_redact(message))
 
 
 def _mask(url: str) -> str:
@@ -117,7 +129,7 @@ def _cmd_status(args) -> int:
     for row in rows:
         if "error" in row:
             failed = True
-            print(f"{row['repo']}: ERROR - {row['error']}")
+            print(f"{row['repo']}: ERROR - {_redact(row['error'])}")
             continue
         state = "active" if row["active"] else "DISABLED"
         delivery = f"{row['code']} {row['status']}" if row["code"] else "no deliveries yet"
@@ -141,7 +153,7 @@ def _cmd_ping(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="gh2discord",
         description="Wire GitHub repos to Discord channels with one command.",
     )
@@ -212,7 +224,7 @@ def main(argv: list | None = None) -> int:
     try:
         return args.func(args)
     except (ConfigError, AuthError, GitHubError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"error: {_redact(str(exc))}", file=sys.stderr)
         return 1
 
 

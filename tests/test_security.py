@@ -94,6 +94,39 @@ def test_cli_survives_legacy_console_encoding(tmp_path, monkeypatch):
     assert raw.getvalue().decode("cp1252") == "channel '??' saved (default)\n"
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["track", "o/r", "--channel", URL],
+        ["track", URL],
+        ["channel", "default", URL],
+        ["channel", "remove", URL],
+        ["track", "o/r", "--channel", "https://discord.com/api/v10/webhooks/111/SecretToken"],
+    ],
+)
+def test_error_messages_never_print_the_webhook_token(argv, tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setenv("GITHUB_TOKEN", "tok")
+    assert main(["channel", "add", "general", URL]) == 0
+    capsys.readouterr()
+    assert main(argv) == 1
+    captured = capsys.readouterr()
+    assert "SecretToken" not in captured.out + captured.err
+    assert "webhooks/111/***" in captured.err
+
+
+def test_usage_errors_never_print_the_webhook_token(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    with pytest.raises(SystemExit) as exc:
+        main(["channel", "list", URL])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "SecretToken" not in err
+    assert "webhooks/111/***" in err
+
+
 def _gh_only(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
