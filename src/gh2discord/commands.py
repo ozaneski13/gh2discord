@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import re
+import shlex
 from dataclasses import dataclass, field
 
 from .config import ConfigError, normalize_webhook_url
 from .github import GitHubClient, GitHubError
 
 GITHUB_SUFFIX = "/github"
+DEFAULT_EVENTS = (
+    "issue_comment",
+    "issues",
+    "pull_request",
+    "pull_request_review",
+    "push",
+    "release",
+)
 
 
 @dataclass
@@ -19,8 +29,11 @@ class TrackResult:
 
 
 def parse_events(spec: str) -> list:
-    if spec.strip().lower() in ("all", "*"):
+    keyword = spec.strip().lower()
+    if keyword in ("all", "*"):
         return ["*"]
+    if keyword == "default":
+        return list(DEFAULT_EVENTS)
     events = sorted({e.strip() for e in spec.split(",") if e.strip()})
     if not events:
         raise ConfigError("no events given")
@@ -85,6 +98,56 @@ def _hook_ids(hooks: list) -> str:
     return ", ".join(str(h["id"]) for h in hooks)
 
 
+def _shell_arg(value: str) -> str:
+    if re.fullmatch(r"[\w.-]+", value):
+        return value
+    if not set(value) & set('"$`!\\'):
+        return f'"{value}"'
+    return shlex.quote(value)
+
+
+def all_events_warning(cfg: dict, repo: str, hook_id: int, channel: str | None) -> str:
+    lines = [
+        f"warning: {repo} hook {hook_id} sends every GitHub event (*)",
+        "  CI bursts (check_run, check_suite, workflow_job) hit Discord's rate limit "
+        "(HTTP 429) and drop real notifications",
+    ]
+    if channel is None:
+        lines.append(
+            "  gh2discord does not manage this hook; "
+            "change its events in the repo's Settings -> Webhooks on GitHub"
+        )
+    else:
+        flag = ""
+        if channel != cfg.get("default_channel"):
+            flag = f" --channel {_shell_arg(channel)}"
+        lines.append(
+            f"  switch to the default events: gh2discord track {repo}{flag} --events default"
+        )
+        lines.append(
+            f"  keep every event and silence this warning: "
+            f"gh2discord track {repo}{flag} --events all"
+        )
+    return "\n".join(lines)
+
+
+def _all_events_opt_in(record: dict, hook_id: int) -> bool:
+    return record.get("all_events_opt_in") is True and record.get("hook_id") == hook_id
+
+
+def _managed_hook_id(cfg: dict, record: dict, discord_hooks: list):
+    ids = [h["id"] for h in discord_hooks]
+    if record.get("hook_id") in ids:
+        return record["hook_id"]
+    if len(ids) == 1:
+        return ids[0]
+    default_url = cfg["channels"].get(cfg.get("default_channel"))
+    for hook in discord_hooks:
+        if default_url and hook["config"]["url"] == default_url + GITHUB_SUFFIX:
+            return hook["id"]
+    return None
+
+
 def track(
     client: GitHubClient,
     cfg: dict,
@@ -93,9 +156,9 @@ def track(
     events: list | None = None,
     force: bool = False,
 ) -> TrackResult:
-    events = events or ["*"]
     name, base_url = resolve_channel(cfg, channel)
     target = base_url + GITHUB_SUFFIX
+    previous = cfg["repos"].get(repo, {})
     hooks = client.list_hooks(repo)
     discord_hooks = _discord_hooks(hooks)
     exact = [h for h in discord_hooks if h["config"]["url"] == target]
@@ -104,13 +167,14 @@ def track(
 
     if exact:
         hook = exact[0]
+        final = events if events is not None else sorted(hook.get("events", []))
         same_config = (hook.get("config") or {}).get("content_type") == "json"
-        same_events = sorted(hook.get("events", [])) == sorted(events)
+        same_events = sorted(hook.get("events", [])) == sorted(final)
         if same_config and same_events and hook.get("active", True):
             action = "unchanged"
         else:
             hook = client.update_hook(
-                repo, hook["id"], target_url=target, events=events, active=True
+                repo, hook["id"], target_url=target, events=final, active=True
             )
             action = "updated"
         if others:
@@ -132,8 +196,9 @@ def track(
             "Re-run with --force to retarget, or remove them on GitHub first."
         )
     elif others:
+        final = events if events is not None else sorted(others[0].get("events", []))
         hook = client.update_hook(
-            repo, others[0]["id"], target_url=target, events=events, active=True
+            repo, others[0]["id"], target_url=target, events=final, active=True
         )
         action = "retargeted"
         for other in others[1:]:
@@ -143,11 +208,18 @@ def track(
                 f"deleted {len(others) - 1} extra Discord hook(s): {_hook_ids(others[1:])}"
             )
     else:
-        hook = client.create_hook(repo, target, events)
+        final = events if events is not None else list(DEFAULT_EVENTS)
+        hook = client.create_hook(repo, target, final)
         action = "created"
 
-    cfg["repos"][repo] = {"channel": name, "hook_id": hook["id"], "events": events}
-    return TrackResult(repo, name, action, hook["id"], events, warnings)
+    record = {"channel": name, "hook_id": hook["id"], "events": final}
+    if "*" in final:
+        if events is not None or _all_events_opt_in(previous, hook["id"]):
+            record["all_events_opt_in"] = True
+        else:
+            warnings.append(all_events_warning(cfg, repo, hook["id"], name))
+    cfg["repos"][repo] = record
+    return TrackResult(repo, name, action, hook["id"], final, warnings)
 
 
 def untrack(client: GitHubClient, cfg: dict, repo: str) -> list:
@@ -170,6 +242,7 @@ def untrack(client: GitHubClient, cfg: dict, repo: str) -> list:
 
 def status(client: GitHubClient, cfg: dict, repo: str | None = None) -> list:
     repos = [repo] if repo else sorted(cfg["repos"])
+    channel_by_target = {url + GITHUB_SUFFIX: n for n, url in cfg["channels"].items()}
     rows = []
     for r in repos:
         try:
@@ -180,19 +253,24 @@ def status(client: GitHubClient, cfg: dict, repo: str | None = None) -> list:
         if not discord_hooks:
             rows.append({"repo": r, "error": "no Discord hook on this repo"})
             continue
+        record = cfg["repos"].get(r, {})
+        managed_id = _managed_hook_id(cfg, record, discord_hooks)
         for hook in discord_hooks:
             last = hook.get("last_response") or {}
-            rows.append(
-                {
-                    "repo": r,
-                    "hook_id": hook["id"],
-                    "active": hook.get("active", False),
-                    "events": hook.get("events", []),
-                    "url": hook["config"]["url"],
-                    "code": last.get("code"),
-                    "status": last.get("status"),
-                }
-            )
+            row = {
+                "repo": r,
+                "hook_id": hook["id"],
+                "active": hook.get("active", False),
+                "events": hook.get("events", []),
+                "url": hook["config"]["url"],
+                "code": last.get("code"),
+                "status": last.get("status"),
+            }
+            if "*" in row["events"] and not _all_events_opt_in(record, hook["id"]):
+                managed = hook["id"] == managed_id
+                channel = channel_by_target.get(row["url"]) if managed else None
+                row["warning"] = all_events_warning(cfg, r, hook["id"], channel)
+            rows.append(row)
     return rows
 
 

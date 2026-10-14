@@ -53,7 +53,7 @@ for repo admins only.
 ## Usage
 
 ```bash
-gh2discord track owner/repo                     # default channel, all events
+gh2discord track owner/repo                     # default channel, default events (see Notes)
 gh2discord track owner/repo --events push,release,issues,pull_request
 gh2discord track owner/repo --channel alerts    # per-repo channel
 gh2discord list                                 # tracked repos
@@ -68,10 +68,11 @@ Repo arguments also accept GitHub URLs (`https://github.com/owner/repo`,
 `git@github.com:owner/repo.git`).
 
 `track` is idempotent: run it twice and you get one hook, not two. It also
-repairs broken hooks in place (wrong content type, disabled, or stale events).
-If the repo already posts to a *different* Discord webhook, `track` stops with
-an error and changes nothing; `--force` retargets that hook and deletes any
-other Discord hooks. If the correct hook exists alongside extra Discord hooks,
+repairs broken hooks in place (wrong content type or disabled). Without
+`--events` it never changes the events of a hook that already exists; pass
+`--events` to change them. If the repo already posts to a *different*
+Discord webhook, `track` stops with an error and changes nothing; `--force`
+retargets that hook and deletes any other Discord hooks. If the correct hook exists alongside extra Discord hooks,
 `track` warns, and `--force` deletes the extras.
 
 Multiple channels work without any bot: register each channel's webhook once
@@ -92,17 +93,39 @@ gh2discord channel remove releases     # refused while a tracked repo still uses
   `~/.config/gh2discord/config.json`). Discord webhook URLs are
   secrets — the file is written with owner-only permissions on POSIX; don't
   commit it anywhere.
-- `--events all` (the default) sends everything GitHub emits; Discord silently
-  ignores event types it can't render. Use an explicit list for quieter channels.
+- New hooks get the default events (`--events default`): `push`,
+  `pull_request`, `pull_request_review`, `issues`, `issue_comment` and
+  `release`. `--events all` subscribes to everything GitHub sends, including
+  CI. Discord renders `check_run` and `check_suite` as one message per CI job,
+  and it rate-limits each webhook (observed: 5 requests per 2 seconds),
+  counting the events it doesn't render, such as `workflow_job`, as well. On a
+  repo with a CI matrix, a single pull request can exceed that limit: Discord
+  answers HTTP 429, GitHub doesn't retry, and the notifications you wanted get
+  dropped. Use `all` only on quiet repos. For other events Discord renders
+  (such as `discussion` or `pull_request_review_comment`), pass the full list,
+  e.g. `--events push,pull_request,pull_request_review,issues,issue_comment,release,discussion`.
 - GitHub returns 404 (not 403) when your token lacks webhook access to a repo —
   if a repo you own reports "not found", check your token scopes first.
+
+## Upgrading from 0.1.x
+
+0.1.x subscribed every hook to all events (`*`). Upgrading changes no hooks:
+`track` without `--events` keeps an existing hook's events. For a hook that
+still sends everything, `track` and `status` print a warning with the exact
+command to run (including `--channel` when the repo isn't on the default
+channel):
+
+```bash
+gh2discord track owner/repo --events default   # switch to the default events
+gh2discord track owner/repo --events all       # keep every event and silence the warning
+```
 
 ## Security
 
 This tool is built to be easy to audit and hard to abuse:
 
 - **Zero runtime dependencies** — pure Python standard library; the whole
-  source is six small files (about 700 lines).
+  source is six small files (about 800 lines).
 - **Single network destination** — only `https://api.github.com`, over HTTPS,
   with silent redirects disabled.
 - **Your token never leaves your machine** — read from the environment or the

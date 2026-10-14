@@ -75,7 +75,7 @@ def _cmd_channel_default(args) -> int:
 def _cmd_track(args) -> int:
     cfg = load()
     repo = normalize_repo(args.repo)
-    events = commands.parse_events(args.events)
+    events = None if args.events is None else commands.parse_events(args.events)
     result = commands.track(
         _client(), cfg, repo, channel=args.channel, events=events, force=args.force
     )
@@ -140,6 +140,8 @@ def _cmd_status(args) -> int:
             f"{row['repo']}: {state}, hook {row['hook_id']} -> {_mask(row['url'])}, "
             f"last delivery: {delivery}, events: {events}"
         )
+        if "warning" in row:
+            print(row["warning"], file=sys.stderr)
     return 1 if failed else 0
 
 
@@ -187,8 +189,11 @@ def build_parser() -> argparse.ArgumentParser:
     track.add_argument("--channel", help="channel name (default: the default channel)")
     track.add_argument(
         "--events",
-        default="all",
-        help="comma-separated GitHub event list, or 'all' (default: all)",
+        help=(
+            "comma-separated GitHub event list, 'default' or 'all'; a new hook gets "
+            f"'default' ({', '.join(commands.DEFAULT_EVENTS)}), an existing hook keeps "
+            "its events unless this flag is given"
+        ),
     )
     track.add_argument(
         "--force",
