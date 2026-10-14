@@ -1,7 +1,7 @@
 # gh2discord — Design
 
 **Date:** 2026-08-04
-**Status:** Approved (v0.1 scope)
+**Status:** Approved for v0.1; describes 0.2.x behaviour
 
 ## Goal
 
@@ -36,7 +36,7 @@ gh2discord channel add <name> <discord-webhook-url> [--default]
 gh2discord channel list
 gh2discord channel remove <name>
 gh2discord channel default <name>
-gh2discord track <owner/repo> [--channel <name>] [--events e1,e2 | --events default | --events all] [--force]
+gh2discord track <owner/repo> [--channel <name>] [--events e1,e2 | default | all | default,e1] [--force]
 gh2discord untrack <owner/repo>
 gh2discord list
 gh2discord status [<owner/repo>]
@@ -62,7 +62,9 @@ optional `.git` suffix); it is normalized to `owner/repo`.
 - `--events default` (what a new hook gets) is `issue_comment`, `issues`,
   `pull_request`, `pull_request_review`, `push`, `release`: signal only, all on
   Discord's documented list of supported GitHub events. `--events all`
-  (GitHub `*`) is an explicit opt-in. Discord renders `check_run` and
+  (GitHub `*`) is an explicit opt-in. Both keywords also expand inside a list
+  (`--events default,discussion`), so they never reach GitHub as event names
+  (GitHub would answer 422). Discord renders `check_run` and
   `check_suite` (one message per CI job), and every delivery, rendered or not,
   counts against the webhook's rate limit, so `*` on a repo with a CI matrix
   gets HTTP 429s that drop real notifications (observed 2026-10-14 on this
@@ -74,7 +76,15 @@ optional `.git` suffix); it is normalized to `owner/repo`.
   `track` would act on (the recorded hook; without a live record, the only
   Discord hook or the one on the default channel) and only when that hook is
   on a registered channel; every other `*` hook gets a pointer to the repo's
-  webhook settings on GitHub instead. `track --events all` (or any explicit list with
+  webhook settings on GitHub instead. When a command needs `--channel` (the
+  hook isn't on the default channel) and the channel name contains `"`, `$`,
+  `` ` ``, `!`, `\`, a curly double quote (`“`, `”`, `„`) or a `%NAME%` pair,
+  the commands show a `CHANNEL` placeholder and the name follows on its own
+  line. Double quotes don't reliably pass such names through cmd.exe,
+  PowerShell and POSIX shells alike: for example, cmd.exe expands `%NAME%` even
+  inside double quotes, PowerShell reads curly double quotes as plain ones, and
+  a trailing `\` means different things to Windows argument parsing and POSIX
+  shells. `track --events all` (or any explicit list with
   `*`) records `all_events_opt_in` for that hook id, which silences the
   warning on this machine. Existing hooks are never narrowed automatically.
 - `untrack` deletes the hook (matched by recorded id, falling back to every

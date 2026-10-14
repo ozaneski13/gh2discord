@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import shlex
 from dataclasses import dataclass, field
 
 from .config import ConfigError, normalize_webhook_url
@@ -29,15 +28,18 @@ class TrackResult:
 
 
 def parse_events(spec: str) -> list:
-    keyword = spec.strip().lower()
-    if keyword in ("all", "*"):
-        return ["*"]
-    if keyword == "default":
-        return list(DEFAULT_EVENTS)
-    events = sorted({e.strip() for e in spec.split(",") if e.strip()})
+    events = set()
+    for name in (e.strip() for e in spec.split(",")):
+        keyword = name.lower()
+        if keyword in ("all", "*"):
+            events.add("*")
+        elif keyword == "default":
+            events.update(DEFAULT_EVENTS)
+        elif name:
+            events.add(name)
     if not events:
         raise ConfigError("no events given")
-    return events
+    return sorted(events)
 
 
 def resolve_channel(cfg: dict, name: str | None = None):
@@ -98,12 +100,12 @@ def _hook_ids(hooks: list) -> str:
     return ", ".join(str(h["id"]) for h in hooks)
 
 
-def _shell_arg(value: str) -> str:
+def _shell_arg(value: str) -> str | None:
     if re.fullmatch(r"[\w.-]+", value):
         return value
-    if not set(value) & set('"$`!\\'):
-        return f'"{value}"'
-    return shlex.quote(value)
+    if set(value) & set('"$`!\\“”„') or re.search(r"%[^%]+%", value):
+        return None
+    return f'"{value}"'
 
 
 def all_events_warning(cfg: dict, repo: str, hook_id: int, channel: str | None) -> str:
@@ -119,8 +121,11 @@ def all_events_warning(cfg: dict, repo: str, hook_id: int, channel: str | None) 
         )
     else:
         flag = ""
+        placeholder = False
         if channel != cfg.get("default_channel"):
-            flag = f" --channel {_shell_arg(channel)}"
+            quoted = _shell_arg(channel)
+            placeholder = quoted is None
+            flag = f" --channel {'CHANNEL' if placeholder else quoted}"
         lines.append(
             f"  switch to the default events: gh2discord track {repo}{flag} --events default"
         )
@@ -128,6 +133,10 @@ def all_events_warning(cfg: dict, repo: str, hook_id: int, channel: str | None) 
             f"  keep every event and silence this warning: "
             f"gh2discord track {repo}{flag} --events all"
         )
+        if placeholder:
+            lines.append(
+                f"  replace CHANNEL with the channel name, quoted for your shell: {channel}"
+            )
     return "\n".join(lines)
 
 
