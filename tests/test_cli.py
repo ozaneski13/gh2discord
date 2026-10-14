@@ -227,6 +227,7 @@ def test_track_help_documents_default_events(capsys):
     out = " ".join(capsys.readouterr().out.split())
     assert "issue_comment, issues, pull_request, pull_request_review, push, release" in out
     assert "an existing hook keeps its events" in out
+    assert "default,discussion" in out
 
 
 @pytest.mark.parametrize(
@@ -242,6 +243,20 @@ def test_track_explicit_events_are_sorted(client):
     add_channel("general", URL_A)
     assert main(["track", "o/r", "--events", "release,push"]) == 0
     assert client.created[0][2] == ["push", "release"]
+
+
+def test_track_default_keyword_combines_with_other_events(client):
+    add_channel("general", URL_A)
+    assert main(["track", "o/r", "--events", "default,discussion"]) == 0
+    assert client.created[0][2] == [
+        "discussion",
+        "issue_comment",
+        "issues",
+        "pull_request",
+        "pull_request_review",
+        "push",
+        "release",
+    ]
 
 
 def test_track_without_channel_exits_1(client, capsys):

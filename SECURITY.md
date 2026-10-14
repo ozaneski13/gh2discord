@@ -43,12 +43,13 @@ downloaded file, keep its `.sigstore.json` bundle next to it and run:
 
 ```bash
 pip install sigstore
-sigstore verify github gh2discord-X.Y.Z-py3-none-any.whl --repository ozaneski13/gh2discord --ref refs/tags/vX.Y.Z
+sigstore verify github gh2discord-X.Y.Z-py3-none-any.whl --cert-identity https://github.com/ozaneski13/gh2discord/.github/workflows/publish.yml@refs/tags/vX.Y.Z --repository ozaneski13/gh2discord --ref refs/tags/vX.Y.Z
 ```
 
-`OK: <file>` means the file was built and signed by this repository's release
-workflow for that tag; a modified file or a signature from any other
-repository fails.
+`OK: <file>` means the file was built and signed by this repository's
+`publish.yml` workflow for that tag. A modified file fails, and so does a
+signature from any other repository, tag or workflow, including the release
+dry run (`release-dryrun.yml`), which signs its builds too.
 
 All GitHub Actions are pinned to full commit SHAs (enforced by a repository
 setting), and the build and test tools are installed from hash-pinned lock

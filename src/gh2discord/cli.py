@@ -190,7 +190,8 @@ def build_parser() -> argparse.ArgumentParser:
     track.add_argument(
         "--events",
         help=(
-            "comma-separated GitHub event list, 'default' or 'all'; a new hook gets "
+            "comma-separated GitHub events; 'default' and 'all' also work inside the list "
+            "(e.g. default,discussion); a new hook gets "
             f"'default' ({', '.join(commands.DEFAULT_EVENTS)}), an existing hook keeps "
             "its events unless this flag is given"
         ),

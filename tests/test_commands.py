@@ -85,6 +85,19 @@ def test_parse_events_default_keyword():
     assert commands.parse_events(" Default ") == list(commands.DEFAULT_EVENTS)
 
 
+@pytest.mark.parametrize(
+    "spec, expected",
+    [
+        ("default,discussion", sorted(commands.DEFAULT_EVENTS + ("discussion",))),
+        ("push, DEFAULT", list(commands.DEFAULT_EVENTS)),
+        ("push,all", ["*", "push"]),
+        ("default,*", ["*"] + list(commands.DEFAULT_EVENTS)),
+    ],
+)
+def test_parse_events_expands_keywords_inside_a_list(spec, expected):
+    assert commands.parse_events(spec) == expected
+
+
 def test_default_events_are_signal_only_and_in_parsed_form():
     defaults = list(commands.DEFAULT_EVENTS)
     assert commands.parse_events(",".join(defaults)) == defaults
@@ -238,16 +251,34 @@ def test_all_events_warning_names_non_default_channel():
         ("geliştirme", "--channel geliştirme "),
         ("my alerts", '--channel "my alerts" '),
         ("50% off", '--channel "50% off" '),
-        ("cost$", "--channel 'cost$' "),
-        ("ship it!", "--channel 'ship it!' "),
-        ("a`b", "--channel 'a`b' "),
-        ('say "hi"', "--channel 'say \"hi\"' "),
-        ("alerts\\", "--channel 'alerts\\' "),
     ],
 )
 def test_all_events_warning_quotes_channel_names(channel, shown):
     warning = commands.all_events_warning(base_cfg(), "o/r", 1, channel)
     assert f"gh2discord track o/r {shown}--events default" in warning
+    assert "CHANNEL" not in warning
+
+
+@pytest.mark.parametrize(
+    "channel",
+    [
+        "cost$",
+        "ship it!",
+        "a`b",
+        'say "hi"',
+        "alerts\\",
+        "%USERNAME%",
+        "ci %OS% builds",
+        "“Releases”",
+        "say „hi“",
+    ],
+)
+def test_all_events_warning_uses_placeholder_for_unquotable_channel_names(channel):
+    warning = commands.all_events_warning(base_cfg(), "o/r", 1, channel)
+    assert "gh2discord track o/r --channel CHANNEL --events default" in warning
+    assert "gh2discord track o/r --channel CHANNEL --events all" in warning
+    hint = f"replace CHANNEL with the channel name, quoted for your shell: {channel}"
+    assert warning.endswith(hint)
 
 
 def test_track_unchanged_when_identical():

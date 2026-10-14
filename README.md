@@ -102,18 +102,21 @@ gh2discord channel remove releases     # refused while a tracked repo still uses
   repo with a CI matrix, a single pull request can exceed that limit: Discord
   answers HTTP 429, GitHub doesn't retry, and the notifications you wanted get
   dropped. Use `all` only on quiet repos. For other events Discord renders
-  (such as `discussion` or `pull_request_review_comment`), pass the full list,
-  e.g. `--events push,pull_request,pull_request_review,issues,issue_comment,release,discussion`.
+  (such as `discussion` or `pull_request_review_comment`), add them to the
+  default, e.g. `--events default,discussion`.
 - GitHub returns 404 (not 403) when your token lacks webhook access to a repo —
   if a repo you own reports "not found", check your token scopes first.
 
 ## Upgrading from 0.1.x
 
-0.1.x subscribed every hook to all events (`*`). Upgrading changes no hooks:
-`track` without `--events` keeps an existing hook's events. For a hook that
-still sends everything, `track` and `status` print a warning with the exact
-command to run (including `--channel` when the repo isn't on the default
-channel):
+0.1.x set a hook to all events (`*`) whenever you ran `track` without
+`--events`, both when it created the hook and when it updated one. Upgrading
+changes no hooks: `track` without `--events` keeps an existing hook's events.
+For a hook that still sends everything, `track` and `status` print a warning
+with the command to run (including `--channel` when the repo isn't on the
+default channel; a channel name containing `"`, `$`, `` ` ``, `!`, `\`, a
+curly double quote or a `%NAME%` pair shows as a `CHANNEL` placeholder for you
+to fill in):
 
 ```bash
 gh2discord track owner/repo --events default   # switch to the default events
