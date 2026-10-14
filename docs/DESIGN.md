@@ -36,7 +36,7 @@ gh2discord channel add <name> <discord-webhook-url> [--default]
 gh2discord channel list
 gh2discord channel remove <name>
 gh2discord channel default <name>
-gh2discord track <owner/repo> [--channel <name>] [--events e1,e2 | --events all] [--force]
+gh2discord track <owner/repo> [--channel <name>] [--events e1,e2 | --events default | --events all] [--force]
 gh2discord untrack <owner/repo>
 gh2discord list
 gh2discord status [<owner/repo>]
@@ -48,16 +48,35 @@ Every `<owner/repo>` argument also accepts a GitHub URL (https or SSH form,
 optional `.git` suffix); it is normalized to `owner/repo`.
 
 - `track` is idempotent: if the repo already has a hook pointing at the target
-  URL with `content_type: json`, correct events, and active state, nothing is
-  written; otherwise the hook is repaired in place (PATCH) instead of creating
-  a duplicate. Any *other* hook targeting a Discord webhook (with or without
-  the `/github` suffix — a bare Discord URL is always a broken GitHub hook)
-  counts as a conflict: the tool warns and aborts unless `--force`, which
+  URL with `content_type: json`, the requested events, and active state,
+  nothing is written; otherwise the hook is repaired in place (PATCH) instead
+  of creating a duplicate. Without `--events`, the requested events of an
+  existing hook are the ones it already has, so only a new hook gets the
+  default; every PATCH sends the events explicitly, because GitHub does not
+  document that leaving them out keeps them. Any *other* hook targeting a
+  Discord webhook (with or without the `/github` suffix — a bare Discord URL
+  is always a broken GitHub hook) counts as a conflict: the tool warns and aborts unless `--force`, which
   retargets the first conflicting hook and deletes the rest. When the exact
   hook already exists alongside extra Discord hooks, `track` reports them as
   a warning and `--force` deletes them.
-- `--events` defaults to `all` (GitHub `*`; Discord silently ignores event
-  types it cannot render).
+- `--events default` (what a new hook gets) is `issue_comment`, `issues`,
+  `pull_request`, `pull_request_review`, `push`, `release`: signal only, all on
+  Discord's documented list of supported GitHub events. `--events all`
+  (GitHub `*`) is an explicit opt-in. Discord renders `check_run` and
+  `check_suite` (one message per CI job), and every delivery, rendered or not,
+  counts against the webhook's rate limit, so `*` on a repo with a CI matrix
+  gets HTTP 429s that drop real notifications (observed 2026-10-14 on this
+  repo: 3 Dependabot PRs in about 4 minutes drew over 450 deliveries, and
+  Discord answered 144 of them with 429).
+- A hook that sends `*` without an explicit opt-in gets a warning from `track`
+  and `status` (stderr, exit code unchanged) with the commands that switch it
+  to the default or keep it. The commands are printed only for the hook
+  `track` would act on (the recorded hook; without a live record, the only
+  Discord hook or the one on the default channel) and only when that hook is
+  on a registered channel; every other `*` hook gets a pointer to the repo's
+  webhook settings on GitHub instead. `track --events all` (or any explicit list with
+  `*`) records `all_events_opt_in` for that hook id, which silences the
+  warning on this machine. Existing hooks are never narrowed automatically.
 - `untrack` deletes the hook (matched by recorded id, falling back to every
   Discord hook that targets any registered channel, so it can delete more
   than one) and removes the local record. If no matching hook exists on
@@ -87,7 +106,10 @@ JSON at `%APPDATA%\gh2discord\config.json` (Windows) or
   "version": 1,
   "default_channel": "general",
   "channels": { "general": "https://discord.com/api/webhooks/123/abc" },
-  "repos": { "owner/repo": { "channel": "general", "hook_id": 42, "events": ["*"] } }
+  "repos": {
+    "owner/repo": { "channel": "general", "hook_id": 42, "events": ["issues", "push"] },
+    "owner/quiet": { "channel": "general", "hook_id": 43, "events": ["*"], "all_events_opt_in": true }
+  }
 }
 ```
 

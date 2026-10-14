@@ -169,13 +169,64 @@ def test_track_creates_hook_and_records_it(client, tmp_path, capsys):
     add_channel("general", URL_A)
     capsys.readouterr()
     assert main(["track", "o/r"]) == 0
-    assert "created: o/r -> #general (hook 999, events: *)" in capsys.readouterr().out
-    assert client.created == [("o/r", URL_A + "/github", ["*"])]
+    captured = capsys.readouterr()
+    assert (
+        "created: o/r -> #general (hook 999, events: issue_comment, issues, "
+        "pull_request, pull_request_review, push, release)"
+    ) in captured.out
+    assert captured.err == ""
+    defaults = [
+        "issue_comment",
+        "issues",
+        "pull_request",
+        "pull_request_review",
+        "push",
+        "release",
+    ]
+    assert client.created == [("o/r", URL_A + "/github", defaults)]
     assert read_config(tmp_path)["repos"]["o/r"] == {
         "channel": "general",
         "hook_id": 999,
-        "events": ["*"],
+        "events": defaults,
     }
+
+
+def test_track_events_all_is_an_explicit_opt_in(client, tmp_path, capsys):
+    add_channel("general", URL_A)
+    capsys.readouterr()
+    assert main(["track", "o/r", "--events", "all"]) == 0
+    captured = capsys.readouterr()
+    assert "created: o/r -> #general (hook 999, events: *)" in captured.out
+    assert captured.err == ""
+    assert read_config(tmp_path)["repos"]["o/r"]["all_events_opt_in"] is True
+
+
+def test_track_keeps_existing_wildcard_hook_and_warns(client, tmp_path, capsys):
+    add_channel("general", URL_A)
+    client.hooks.append(hook(1, URL_A + "/github"))
+    capsys.readouterr()
+    assert main(["track", "o/r"]) == 0
+    captured = capsys.readouterr()
+    assert "unchanged: o/r -> #general (hook 1, events: *)" in captured.out
+    assert "gh2discord track o/r --events default" in captured.err
+    assert "SecretToken" not in captured.err
+    assert read_config(tmp_path)["repos"]["o/r"]["events"] == ["*"]
+
+
+def test_track_empty_events_exits_1(client, capsys):
+    add_channel("general", URL_A)
+    assert main(["track", "o/r", "--events", " , "]) == 1
+    assert "no events given" in capsys.readouterr().err
+    assert client.created == []
+
+
+def test_track_help_documents_default_events(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["track", "--help"])
+    assert exc.value.code == 0
+    out = " ".join(capsys.readouterr().out.split())
+    assert "issue_comment, issues, pull_request, pull_request_review, push, release" in out
+    assert "an existing hook keeps its events" in out
 
 
 @pytest.mark.parametrize(
@@ -300,6 +351,28 @@ def test_status_hook_without_deliveries_is_healthy(client, capsys):
     capsys.readouterr()
     assert main(["status"]) == 0
     assert "last delivery: no deliveries yet" in capsys.readouterr().out
+
+
+def test_status_warns_about_wildcard_hook_without_failing(client, capsys):
+    add_channel("general", URL_A)
+    client.hooks.append(hook(1, URL_A + "/github"))
+    capsys.readouterr()
+    assert main(["status", "o/r"]) == 0
+    captured = capsys.readouterr()
+    assert "o/r: active, hook 1" in captured.out
+    assert "sends every GitHub event (*)" in captured.err
+    assert "gh2discord track o/r --events default" in captured.err
+
+
+def test_status_rate_limited_wildcard_hook_exits_1(client, capsys):
+    add_channel("general", URL_A)
+    client.hooks.append(hook(1, URL_A + "/github"))
+    client.hooks[0]["last_response"] = {"code": 429, "status": "failed"}
+    capsys.readouterr()
+    assert main(["status", "o/r"]) == 1
+    captured = capsys.readouterr()
+    assert "last delivery: 429 failed" in captured.out
+    assert "HTTP 429" in captured.err
 
 
 def test_status_repo_without_hook_exits_1(client, capsys):
